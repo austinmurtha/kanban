@@ -1,7 +1,7 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { KanbanBoard } from "@/components/KanbanBoard";
-import { initialData } from "@/lib/kanban";
+import { type BoardData, initialData } from "@/lib/kanban";
 
 const getFirstColumn = () => screen.getAllByTestId(/column-/i)[0];
 
@@ -69,5 +69,100 @@ describe("KanbanBoard", () => {
     await userEvent.click(screen.getByRole("button", { name: /retry loading board/i }));
     expect(await screen.findAllByTestId(/column-/i)).toHaveLength(5);
     expect(loadBoard).toHaveBeenCalledTimes(2);
+  });
+
+  it("sends chat messages and renders assistant replies", async () => {
+    const sendChat = vi.fn().mockResolvedValue({
+      assistant_message: "No board changes needed.",
+      board_update: null,
+    });
+    render(
+      <KanbanBoard
+        loadBoard={vi.fn().mockResolvedValue(initialData)}
+        saveBoard={vi.fn()}
+        sendChat={sendChat}
+      />
+    );
+
+    await screen.findAllByTestId(/column-/i);
+    await userEvent.type(screen.getByLabelText("Message"), "Summarize this board");
+    await userEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+    await waitFor(() => {
+      expect(sendChat).toHaveBeenCalledWith("user", "Summarize this board", []);
+    });
+    expect(await screen.findByText("No board changes needed.")).toBeInTheDocument();
+    expect(screen.getByTestId("chat-message-user")).toHaveTextContent("Summarize this board");
+  });
+
+  it("shows chat error when assistant call fails", async () => {
+    const sendChat = vi.fn().mockRejectedValue(new Error("network"));
+    render(
+      <KanbanBoard
+        loadBoard={vi.fn().mockResolvedValue(initialData)}
+        saveBoard={vi.fn()}
+        sendChat={sendChat}
+      />
+    );
+
+    await screen.findAllByTestId(/column-/i);
+    await userEvent.type(screen.getByLabelText("Message"), "Move card-1");
+    await userEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+    expect(
+      await screen.findByText(/unable to reach the ai assistant right now/i)
+    ).toBeInTheDocument();
+  });
+
+  it("shows chat loading state while waiting for assistant", async () => {
+    let resolveChat: ((value: { assistant_message: string; board_update: null }) => void) | null =
+      null;
+    const sendChat = vi.fn().mockImplementation(
+      () =>
+        new Promise<{ assistant_message: string; board_update: null }>((resolve) => {
+          resolveChat = resolve;
+        })
+    );
+
+    render(
+      <KanbanBoard
+        loadBoard={vi.fn().mockResolvedValue(initialData)}
+        saveBoard={vi.fn()}
+        sendChat={sendChat}
+      />
+    );
+
+    await screen.findAllByTestId(/column-/i);
+    await userEvent.type(screen.getByLabelText("Message"), "Any blockers?");
+    await userEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+    expect(screen.getByRole("button", { name: /thinking/i })).toBeDisabled();
+
+    resolveChat?.({ assistant_message: "No blockers right now.", board_update: null });
+    expect(await screen.findByText("No blockers right now.")).toBeInTheDocument();
+  });
+
+  it("applies AI board updates immediately in the UI", async () => {
+    const nextBoard: BoardData = JSON.parse(JSON.stringify(initialData)) as BoardData;
+    nextBoard.columns[0].title = "AI Backlog";
+    const sendChat = vi.fn().mockResolvedValue({
+      assistant_message: "Renamed first column.",
+      board_update: nextBoard,
+    });
+
+    render(
+      <KanbanBoard
+        loadBoard={vi.fn().mockResolvedValue(initialData)}
+        saveBoard={vi.fn()}
+        sendChat={sendChat}
+      />
+    );
+
+    await screen.findAllByTestId(/column-/i);
+    await userEvent.type(screen.getByLabelText("Message"), "Rename first column");
+    await userEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+    const firstColumn = screen.getAllByTestId(/column-/i)[0];
+    expect(await within(firstColumn).findByDisplayValue("AI Backlog")).toBeInTheDocument();
   });
 });

@@ -7,7 +7,7 @@ This document describes the current `frontend/` app and how to work on it safely
 - Framework: Next.js App Router (`next` 16), React 19, TypeScript.
 - Styling: Tailwind CSS v4 plus CSS variables in `src/app/globals.css`.
 - Core UI: single-page Kanban board rendered at `/`.
-- State model: in-memory client state only (no backend integration yet).
+- State model: board state is loaded/saved through backend API routes.
 - Drag and drop: `@dnd-kit` libraries.
 
 ## Directory map
@@ -27,10 +27,13 @@ This document describes the current `frontend/` app and how to work on it safely
 ## Current behavior
 
 - App shows one board with five columns.
+- Auth gate supports sign-in and local sign-up (frontend localStorage only for MVP).
 - User can rename columns inline.
 - User can add and remove cards.
 - User can drag cards within and across columns.
-- All updates are local state in `KanbanBoard` and reset on reload.
+- Board updates are persisted through backend board APIs and survive reloads.
+- A sidebar AI chat sends prompts and full conversation history to backend.
+- Valid AI board updates are applied to UI state immediately.
 
 ## Commands
 

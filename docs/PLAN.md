@@ -222,20 +222,25 @@ This makes board updates safer and deterministic versus parsing free-form text.
 ## Part 10 - Sidebar AI UX + Auto Refresh
 
 ### Checklist
-- [ ] Add sidebar chat UI styled to project palette.
-- [ ] Render conversation history.
-- [ ] Send user prompts to backend AI endpoint.
-- [ ] Apply returned board updates to UI state and persist through backend.
-- [ ] Refresh board view immediately when AI update is accepted.
+- [x] Add sidebar chat UI styled to project palette.
+- [x] Render conversation history.
+- [x] Send user prompts to backend AI endpoint.
+- [x] Apply returned board updates to UI state and persist through backend.
+- [x] Refresh board view immediately when AI update is accepted.
 
 ### Tests
-- [ ] Frontend component/integration tests for chat send/receive and loading/error states.
-- [ ] Integration test for AI-triggered board update appearing in Kanban UI.
+- [x] Frontend component/integration tests for chat send/receive and loading/error states.
+- [x] Integration test for AI-triggered board update appearing in Kanban UI.
 - [ ] Manual smoke test in Docker for full workflow.
 
 ### Success Criteria
 - User can chat with AI in sidebar.
 - AI can optionally modify board and UI reflects changes immediately.
+
+### Status
+- Part 10 implementation is complete in frontend.
+- Added sidebar chat UI, conversation history rendering, and backend chat wiring.
+- Added frontend tests covering chat send/receive, loading/error states, and AI-driven board updates.
 
 ## Execution Order and Gates
 
