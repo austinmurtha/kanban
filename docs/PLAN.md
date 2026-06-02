@@ -9,6 +9,7 @@ This document is the execution plan for the MVP described in `AGENTS.md`.
 - Recommendation: store each board as JSON in SQLite for simplicity and clean migration later.
 - Recommendation: use static Next.js export and serve built assets from FastAPI.
 - AI model target: `openrouter/free` via OpenRouter.
+- Current DB location is `/app/data/pm.db` inside the container; data persists during runtime but is reset when the container is recreated (no host volume mount yet).
 
 ## Part 1 - Plan and Repository Orientation
 
@@ -236,5 +237,5 @@ This makes board updates safer and deterministic versus parsing free-form text.
 - [ ] Complete parts in order from 1 to 10.
 - [ ] Pause for user sign-off at planned gates:
   - [x] After Part 1 plan + `frontend/AGENTS.md`
-  - [ ] After Part 5 schema documentation
+  - [x] After Part 5 schema documentation
   - [ ] Before enabling AI-driven board mutations in Part 9
