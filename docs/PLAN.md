@@ -109,8 +109,8 @@ This keeps MVP implementation simple while preserving future migration options.
 
 ### Checklist
 - [ ] Finalize schema in docs and get user sign-off.
-- [ ] Define JSON shape for board payload (columns, card IDs/order, card content).
-- [ ] Document migration path to normalized card/column tables if needed later.
+- [x] Define JSON shape for board payload (columns, card IDs/order, card content).
+- [x] Document migration path to normalized card/column tables if needed later.
 
 ### Tests
 - [ ] Add schema-level tests for table creation and constraints.
@@ -119,6 +119,10 @@ This keeps MVP implementation simple while preserving future migration options.
 ### Success Criteria
 - Schema is approved and documented.
 - Backend can reliably persist and retrieve full board JSON per user.
+
+### Status
+- Database proposal documented in `docs/DATABASE.md`.
+- Awaiting explicit user sign-off to mark Part 5 complete.
 
 ## Part 6 - Backend API for Kanban Persistence
 
