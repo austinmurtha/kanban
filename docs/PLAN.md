@@ -108,7 +108,7 @@ This document is the execution plan for the MVP described in `AGENTS.md`.
 This keeps MVP implementation simple while preserving future migration options.
 
 ### Checklist
-- [ ] Finalize schema in docs and get user sign-off.
+- [x] Finalize schema in docs and get user sign-off.
 - [x] Define JSON shape for board payload (columns, card IDs/order, card content).
 - [x] Document migration path to normalized card/column tables if needed later.
 
@@ -121,26 +121,30 @@ This keeps MVP implementation simple while preserving future migration options.
 - Backend can reliably persist and retrieve full board JSON per user.
 
 ### Status
+- Part 5 is complete and approved.
 - Database proposal documented in `docs/DATABASE.md`.
-- Awaiting explicit user sign-off to mark Part 5 complete.
 
 ## Part 6 - Backend API for Kanban Persistence
 
 ### Checklist
-- [ ] Add DB initialization on startup if DB file/tables do not exist.
-- [ ] Implement API to fetch board for current user.
-- [ ] Implement API to replace/update board JSON for current user.
-- [ ] Add request/response models with validation.
-- [ ] Add clear error responses for invalid payloads.
+- [x] Add DB initialization on startup if DB file/tables do not exist.
+- [x] Implement API to fetch board for current user.
+- [x] Implement API to replace/update board JSON for current user.
+- [x] Add request/response models with validation.
+- [x] Add clear error responses for invalid payloads.
 
 ### Tests
-- [ ] Unit tests for repository/service functions.
-- [ ] API integration tests for read/update board routes.
-- [ ] Tests for startup initialization creating DB automatically.
+- [x] Unit tests for repository/service functions.
+- [x] API integration tests for read/update board routes.
+- [x] Tests for startup initialization creating DB automatically.
 
 ### Success Criteria
 - Backend persists board updates and returns latest state reliably.
 - API contract is validated and tested.
+
+### Status
+- Part 6 is complete and validated.
+- Backend test suite passes in container (`8 passed`).
 
 ## Part 7 - Frontend + Backend Wiring
 

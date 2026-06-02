@@ -6,10 +6,16 @@ This folder contains the FastAPI backend for the project.
 
 - Entry point: `app/main.py`
 - Routes:
-  - `GET /` serves a static hello-world HTML page
+  - `GET /` serves exported frontend static assets
   - `GET /api/health` returns health JSON
   - `GET /api/hello` returns sample API JSON
-- Tests: `tests/test_main.py` validates page and API routes.
+  - `GET /api/board/{username}` returns persisted board state
+  - `PUT /api/board/{username}` updates persisted board state
+- Database:
+  - SQLite database initialized on startup
+  - Tables: `users`, `boards`
+  - Board JSON stored in `boards.board_state_json`
+- Tests: `tests/test_main.py` validates static serving, DB init, and board APIs.
 
 ### Working conventions
 
