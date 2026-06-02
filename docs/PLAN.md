@@ -8,7 +8,7 @@ This document is the execution plan for the MVP described in `AGENTS.md`.
 - A frontend-only login gate is acceptable for MVP (not backend-enforced auth yet).
 - Recommendation: store each board as JSON in SQLite for simplicity and clean migration later.
 - Recommendation: use static Next.js export and serve built assets from FastAPI.
-- AI model target: `openai/gpt-oss-120b` via OpenRouter.
+- AI model target: `openrouter/free` via OpenRouter.
 
 ## Part 1 - Plan and Repository Orientation
 
@@ -171,17 +171,22 @@ This keeps MVP implementation simple while preserving future migration options.
 ## Part 8 - AI Connectivity (OpenRouter Baseline)
 
 ### Checklist
-- [ ] Add backend AI client using `OPENROUTER_API_KEY`.
-- [ ] Configure model `openai/gpt-oss-120b`.
-- [ ] Add test endpoint or service method for simple prompt check.
-- [ ] Implement connectivity guardrails (timeout, error mapping, logging).
+- [x] Add backend AI client using `OPENROUTER_API_KEY`.
+- [x] Configure model `openrouter/free`.
+- [x] Add test endpoint or service method for simple prompt check.
+- [x] Implement connectivity guardrails (timeout, error mapping, logging).
 
 ### Tests
-- [ ] Connectivity test with prompt `2+2` and expected non-empty response.
-- [ ] Unit tests for AI client success and failure paths.
+- [x] Connectivity test with prompt `2+2` and expected non-empty response.
+- [x] Unit tests for AI client success and failure paths.
 
 ### Success Criteria
 - Backend can successfully call OpenRouter model from local environment.
+
+### Status
+- Part 8 is complete and validated.
+- Backend tests pass, including AI client/unit endpoint tests (`12 passed`).
+- Live connectivity test now succeeds with `openrouter/free` (`2+2` -> `4`).
 
 ## Part 9 - Structured AI Outputs for Chat + Optional Board Update
 
