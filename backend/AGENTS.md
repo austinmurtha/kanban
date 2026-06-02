@@ -12,6 +12,7 @@ This folder contains the FastAPI backend for the project.
   - `GET /api/board/{username}` returns persisted board state
   - `PUT /api/board/{username}` updates persisted board state
   - `POST /api/ai/test` checks OpenRouter connectivity (default prompt `2+2`)
+  - `POST /api/ai/chat/{username}` runs structured AI chat and optional board update
 - Database:
   - SQLite database initialized on startup
   - Tables: `users`, `boards`

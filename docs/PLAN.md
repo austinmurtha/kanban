@@ -196,23 +196,28 @@ Structured outputs force the model to return machine-parseable JSON in a fixed s
 This makes board updates safer and deterministic versus parsing free-form text.
 
 ### Checklist
-- [ ] Define strict response schema:
-  - [ ] `assistant_message` (string)
-  - [ ] `board_update` (optional object in agreed board JSON shape)
-- [ ] Send current board JSON + user message + history to model.
-- [ ] Validate model output against schema before applying any update.
-- [ ] Reject/ignore invalid updates and return safe fallback response.
+- [x] Define strict response schema:
+  - [x] `assistant_message` (string)
+  - [x] `board_update` (optional object in agreed board JSON shape)
+- [x] Send current board JSON + user message + history to model.
+- [x] Validate model output against schema before applying any update.
+- [x] Reject/ignore invalid updates and return safe fallback response.
 
 ### Tests
-- [ ] Unit tests for schema validation and fallback handling.
-- [ ] Integration tests for:
-  - [ ] Message-only replies (no board change)
-  - [ ] Valid board updates
-  - [ ] Invalid schema output handling
+- [x] Unit tests for schema validation and fallback handling.
+- [x] Integration tests for:
+  - [x] Message-only replies (no board change)
+  - [x] Valid board updates
+  - [x] Invalid schema output handling
 
 ### Success Criteria
 - Chat replies are reliable.
 - Any board update is schema-valid before persistence.
+
+### Status
+- Part 9 backend scope is complete and validated by static syntax checks.
+- Added `POST /api/ai/chat/{username}` with strict response validation and safe fallback behavior.
+- Added backend tests for message-only replies, valid board updates, and invalid schema handling.
 
 ## Part 10 - Sidebar AI UX + Auto Refresh
 
@@ -238,4 +243,4 @@ This makes board updates safer and deterministic versus parsing free-form text.
 - [ ] Pause for user sign-off at planned gates:
   - [x] After Part 1 plan + `frontend/AGENTS.md`
   - [x] After Part 5 schema documentation
-  - [ ] Before enabling AI-driven board mutations in Part 9
+  - [x] Before enabling AI-driven board mutations in Part 9

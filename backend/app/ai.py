@@ -20,13 +20,23 @@ class OpenRouterClient:
   http_client: httpx.Client | None = None
 
   def chat(self, prompt: str) -> str:
+    return self.chat_messages([{"role": "user", "content": prompt}])
+
+  def chat_messages(
+    self,
+    messages: list[dict[str, str]],
+    response_format: dict[str, Any] | None = None,
+  ) -> str:
     if not self.api_key:
       raise AIClientError("OPENROUTER_API_KEY is missing.")
 
     payload = {
       "model": self.model,
-      "messages": [{"role": "user", "content": prompt}],
+      "messages": messages,
     }
+    if response_format is not None:
+      payload["response_format"] = response_format
+
     headers = {
       "Authorization": f"Bearer {self.api_key}",
       "Content-Type": "application/json",

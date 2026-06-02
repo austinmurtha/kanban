@@ -1,9 +1,11 @@
 import os
+import json
 from pathlib import Path
 from contextlib import asynccontextmanager
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from fastapi.responses import FileResponse, HTMLResponse
 
 from app.ai import AIClientError, OpenRouterClient, create_openrouter_client
@@ -19,6 +21,103 @@ class AITestResponse(BaseModel):
   model: str
   prompt: str
   response: str
+
+
+class ChatHistoryMessage(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  role: Literal["user", "assistant"]
+  content: str
+
+  @field_validator("content")
+  @classmethod
+  def validate_content(cls, value: str) -> str:
+    if not value.strip():
+      raise ValueError("Message content must not be empty.")
+    return value
+
+
+class AIChatRequest(BaseModel):
+  message: str
+  history: list[ChatHistoryMessage] = Field(default_factory=list)
+
+  @field_validator("message")
+  @classmethod
+  def validate_message(cls, value: str) -> str:
+    if not value.strip():
+      raise ValueError("Message must not be empty.")
+    return value
+
+
+class AIModelResponse(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  assistant_message: str
+  board_update: BoardState | None = None
+
+  @field_validator("assistant_message")
+  @classmethod
+  def validate_assistant_message(cls, value: str) -> str:
+    if not value.strip():
+      raise ValueError("assistant_message must not be empty.")
+    return value
+
+
+class AIChatResponse(BaseModel):
+  assistant_message: str
+  board_update: BoardState | None = None
+
+
+def _fallback_chat_response() -> AIChatResponse:
+  return AIChatResponse(
+    assistant_message=(
+      "I could not apply an AI update safely this time, but your board is unchanged. "
+      "Please try your request again."
+    ),
+    board_update=None,
+  )
+
+
+def _build_ai_messages(
+  board_state: BoardState,
+  request: AIChatRequest,
+) -> list[dict[str, str]]:
+  system_prompt = (
+    "You are the PM MVP Kanban assistant. "
+    "Return JSON only with this exact shape: "
+    '{"assistant_message":"string","board_update":null|{"columns":[...],"cards":{...}}}. '
+    "If no board change is needed, set board_update to null. "
+    "If board_update is present, it must be a complete replacement board object and keep cardIds valid."
+  )
+  user_payload = {
+    "current_board": board_state.model_dump(),
+    "conversation_history": [item.model_dump() for item in request.history],
+    "user_message": request.message,
+  }
+  return [
+    {"role": "system", "content": system_prompt},
+    {"role": "user", "content": json.dumps(user_payload)},
+  ]
+
+
+AI_RESPONSE_FORMAT = {
+  "type": "json_schema",
+  "json_schema": {
+    "name": "pm_chat_response",
+    "strict": True,
+    "schema": {
+      "type": "object",
+      "additionalProperties": False,
+      "required": ["assistant_message", "board_update"],
+      "properties": {
+        "assistant_message": {"type": "string"},
+        "board_update": {
+          "type": ["object", "null"],
+        },
+      },
+    },
+  },
+}
 
 
 def create_app(
@@ -69,6 +168,41 @@ def create_app(
       model=app.state.ai_client.model,
       prompt=request.prompt,
       response=response_text,
+    )
+
+  @app.post("/api/ai/chat/{username}", response_model=AIChatResponse)
+  def ai_chat(username: str, request: AIChatRequest) -> AIChatResponse:
+    current_board = get_or_create_board(app.state.db, username)
+    messages = _build_ai_messages(current_board, request)
+
+    try:
+      raw_model_response = app.state.ai_client.chat_messages(
+        messages=messages,
+        response_format=AI_RESPONSE_FORMAT,
+      )
+    except AIClientError:
+      return _fallback_chat_response()
+
+    try:
+      parsed_payload = json.loads(raw_model_response)
+      validated_response = AIModelResponse.model_validate(parsed_payload)
+    except (json.JSONDecodeError, ValidationError):
+      return _fallback_chat_response()
+
+    if validated_response.board_update is None:
+      return AIChatResponse(
+        assistant_message=validated_response.assistant_message,
+        board_update=None,
+      )
+
+    persisted_board = update_board(
+      app.state.db,
+      username,
+      validated_response.board_update,
+    )
+    return AIChatResponse(
+      assistant_message=validated_response.assistant_message,
+      board_update=persisted_board,
     )
 
   resolved_static_dir = static_dir or Path(
