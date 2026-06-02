@@ -149,19 +149,24 @@ This keeps MVP implementation simple while preserving future migration options.
 ## Part 7 - Frontend + Backend Wiring
 
 ### Checklist
-- [ ] Replace local frontend board state source with backend API calls.
-- [ ] Load board state on login.
-- [ ] Save board updates from drag/edit actions.
-- [ ] Add loading/error handling for API failures.
+- [x] Replace local frontend board state source with backend API calls.
+- [x] Load board state on login.
+- [x] Save board updates from drag/edit actions.
+- [x] Add loading/error handling for API failures.
 
 ### Tests
-- [ ] Frontend integration tests with mocked API for load/save flows.
-- [ ] Backend integration tests continue passing for persistence routes.
-- [ ] Basic manual smoke test in Docker: edit/move cards, refresh, state persists.
+- [x] Frontend integration tests with mocked API for load/save flows.
+- [x] Backend integration tests continue passing for persistence routes.
+- [x] Basic manual smoke test in Docker: edit/move cards, refresh, state persists.
 
 ### Success Criteria
 - Board state is truly persistent via backend.
 - User sees consistent board state after refresh/reload.
+
+### Status
+- Part 7 is complete and validated.
+- Frontend tests pass (`11 passed`).
+- Backend tests pass in container (`8 passed`).
 
 ## Part 8 - AI Connectivity (OpenRouter Baseline)
 

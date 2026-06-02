@@ -112,7 +112,7 @@ export const LoginGate = () => {
       >
         Log out
       </button>
-      <KanbanBoard />
+      <KanbanBoard username={DUMMY_USERNAME} />
     </div>
   );
 };
