@@ -2,19 +2,19 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class Card(BaseModel):
-  id: str
-  title: str
-  details: str
+  id: str = Field(min_length=1, max_length=100)
+  title: str = Field(min_length=1, max_length=200)
+  details: str = Field(max_length=2000)
 
 
 class Column(BaseModel):
-  id: str
-  title: str
+  id: str = Field(min_length=1, max_length=100)
+  title: str = Field(min_length=1, max_length=100)
   cardIds: list[str] = Field(default_factory=list)
 
 
 class BoardState(BaseModel):
-  columns: list[Column]
+  columns: list[Column] = Field(min_length=1, max_length=10)
   cards: dict[str, Card]
 
   @model_validator(mode="after")

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -8,23 +8,24 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  pointerWithin,
+  type CollisionDetection,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
-import { createId, initialData, moveCard, type BoardData } from "@/lib/kanban";
+import { createId, initialData, moveCard, type BoardData, type Card } from "@/lib/kanban";
 
 type LoadBoard = (username: string) => Promise<BoardData>;
 type SaveBoard = (username: string, board: BoardData) => Promise<void>;
-type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
-};
+type ChatHistoryItem = { role: "user" | "assistant"; content: string };
+type ChatMessage = ChatHistoryItem & { id: string };
 type SendChat = (
   username: string,
   message: string,
-  history: ChatMessage[]
+  history: ChatHistoryItem[]
 ) => Promise<{
   assistant_message: string;
   board_update: BoardData | null;
@@ -61,7 +62,7 @@ const saveBoardToApi: SaveBoard = async (username: string, board: BoardData) => 
 const sendChatToApi: SendChat = async (
   username: string,
   message: string,
-  history: ChatMessage[]
+  history: ChatHistoryItem[]
 ) => {
   const response = await fetch(`/api/ai/chat/${encodeURIComponent(username)}`, {
     method: "POST",
@@ -102,6 +103,22 @@ export const KanbanBoard = ({
     })
   );
 
+  // pointerWithin detects the column the cursor is physically inside, which
+  // correctly handles empty columns where closestCorners resolves to cards in
+  // adjacent columns instead. When the pointer lands on a card, prefer the card
+  // collision for precise within-column insertion; fall back to closestCorners
+  // when the pointer is between cards or outside all droppables.
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      const cardCollisions = pointerCollisions.filter(
+        ({ id }) => typeof id === "string" && !id.startsWith("col-")
+      );
+      return cardCollisions.length > 0 ? cardCollisions : pointerCollisions;
+    }
+    return closestCorners(args);
+  }, []);
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -111,6 +128,7 @@ export const KanbanBoard = ({
       try {
         const loadedBoard = await loadBoard(username);
         if (!isCancelled) {
+          skipNextSaveRef.current = true;
           setBoard(loadedBoard);
           setSaveError("");
         }
@@ -145,18 +163,35 @@ export const KanbanBoard = ({
     [username, saveBoard]
   );
 
+  // Skip saving the board when it is set by a load (not a user edit).
+  const skipNextSaveRef = useRef(true);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!board) return;
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return;
+    }
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void persistBoard(board);
+    }, 400);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [board, persistBoard]);
+
   const updateBoard = useCallback(
     (updater: (previous: BoardData) => BoardData) => {
       setBoard((previous) => {
         if (!previous) {
           return previous;
         }
-        const next = updater(previous);
-        void persistBoard(next);
-        return next;
+        return updater(previous);
       });
     },
-    [persistBoard]
+    []
   );
 
   const cardsById = useMemo(() => board?.cards ?? {}, [board]);
@@ -164,6 +199,25 @@ export const KanbanBoard = ({
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(event.active.id as string);
   };
+
+  // Move cards between columns during drag so empty-column drops register correctly.
+  // closestCorners may return null for over when a SortableContext has no items;
+  // updating board state here ensures the card is in the right column before onDragEnd.
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setBoard((previous) => {
+      if (!previous) return previous;
+      const nextColumns = moveCard(
+        previous.columns,
+        active.id as string,
+        over.id as string
+      );
+      return nextColumns === previous.columns
+        ? previous
+        : { ...previous, columns: nextColumns };
+    });
+  }, []);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -173,6 +227,8 @@ export const KanbanBoard = ({
       return;
     }
 
+    // Finalize position (handles within-column reordering;
+    // cross-column moves are already applied by handleDragOver).
     updateBoard((previous) => ({
       ...previous,
       columns: moveCard(previous.columns, active.id as string, over.id as string),
@@ -229,8 +285,13 @@ export const KanbanBoard = ({
       return;
     }
 
-    const historySnapshot = chatHistory;
-    setChatHistory((previous) => [...previous, { role: "user", content: message }]);
+    const historySnapshot = chatHistory
+      .slice(-10)
+      .map(({ role, content }) => ({ role, content }));
+    setChatHistory((previous) => [
+      ...previous,
+      { id: crypto.randomUUID(), role: "user", content: message },
+    ]);
     setChatInput("");
     setChatError("");
     setIsSendingChat(true);
@@ -239,11 +300,11 @@ export const KanbanBoard = ({
       const response = await sendChat(username, message, historySnapshot);
       setChatHistory((previous) => [
         ...previous,
-        { role: "assistant", content: response.assistant_message },
+        { id: crypto.randomUUID(), role: "assistant", content: response.assistant_message },
       ]);
       if (response.board_update) {
-        setBoard(response.board_update);
-        setSaveError("");
+        const boardUpdate = response.board_update;
+        updateBoard(() => boardUpdate);
       }
     } catch {
       setChatError("Unable to reach the AI assistant right now.");
@@ -325,8 +386,9 @@ export const KanbanBoard = ({
         <section className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCorners}
+            collisionDetection={collisionDetection}
             onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
             <section className="grid gap-6 lg:grid-cols-5" aria-label="Kanban columns">
@@ -334,7 +396,9 @@ export const KanbanBoard = ({
                 <KanbanColumn
                   key={column.id}
                   column={column}
-                  cards={column.cardIds.map((cardId) => safeBoard.cards[cardId])}
+                  cards={column.cardIds
+                    .map((cardId) => safeBoard.cards[cardId])
+                    .filter((card): card is Card => card !== undefined)}
                   onRename={handleRenameColumn}
                   onAddCard={handleAddCard}
                   onDeleteCard={handleDeleteCard}
@@ -370,9 +434,9 @@ export const KanbanBoard = ({
                   No messages yet.
                 </p>
               ) : (
-                chatHistory.map((message, index) => (
+                chatHistory.map((message) => (
                   <article
-                    key={`${message.role}-${index}`}
+                    key={message.id}
                     data-testid={`chat-message-${message.role}`}
                     className={`rounded-2xl px-3 py-2 text-sm leading-6 ${
                       message.role === "user"

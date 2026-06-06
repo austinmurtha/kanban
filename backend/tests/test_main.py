@@ -45,12 +45,6 @@ def test_health_endpoint(tmp_path: Path) -> None:
   assert response.json() == {"status": "ok"}
 
 
-def test_hello_endpoint(tmp_path: Path) -> None:
-  with TestClient(create_app(db_path=tmp_path / "pm.db")) as client:
-    response = client.get("/api/hello")
-  assert response.status_code == 200
-  assert response.json() == {"message": "Hello from FastAPI API"}
-
 
 def test_db_is_created_on_startup(tmp_path: Path) -> None:
   db_path = tmp_path / "nested" / "pm.db"

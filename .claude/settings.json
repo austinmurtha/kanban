@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // \"\"' | { read -r f; echo \"$f\" | grep -qE '/frontend/src/.*\\.tsx?$' && (cd /Users/amurtha/projects/pm/frontend && npm run lint 2>&1); } || true",
+            "timeout": 60,
+            "statusMessage": "Linting frontend..."
+          }
+        ]
+      }
+    ]
+  }
+}

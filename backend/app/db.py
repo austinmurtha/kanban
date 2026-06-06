@@ -15,6 +15,7 @@ def connect_db(db_path: Path) -> sqlite3.Connection:
   connection = sqlite3.connect(db_path, check_same_thread=False)
   connection.row_factory = sqlite3.Row
   connection.execute("PRAGMA foreign_keys = ON")
+  connection.execute("PRAGMA journal_mode=WAL")
   return connection
 
 
@@ -43,22 +44,16 @@ def init_db(connection: sqlite3.Connection) -> None:
 
 
 def _ensure_user(connection: sqlite3.Connection, username: str) -> int:
-  user_row = connection.execute(
-    "SELECT id FROM users WHERE username = ?", (username,)
-  ).fetchone()
-  if user_row:
-    return int(user_row["id"])
-
   now = _utc_now_iso()
-  cursor = connection.execute(
-    """
-    INSERT INTO users (username, created_at, updated_at)
-    VALUES (?, ?, ?)
-    """,
+  connection.execute(
+    "INSERT OR IGNORE INTO users (username, created_at, updated_at) VALUES (?, ?, ?)",
     (username, now, now),
   )
   connection.commit()
-  return int(cursor.lastrowid)
+  row = connection.execute(
+    "SELECT id FROM users WHERE username = ?", (username,)
+  ).fetchone()
+  return int(row["id"])
 
 
 def get_or_create_board(connection: sqlite3.Connection, username: str) -> BoardState:
@@ -80,7 +75,7 @@ def get_or_create_board(connection: sqlite3.Connection, username: str) -> BoardS
     (user_id, "Main Board", board_state_json, now, now),
   )
   connection.commit()
-  return INITIAL_BOARD_STATE
+  return INITIAL_BOARD_STATE.model_copy(deep=True)
 
 
 def update_board(
@@ -88,28 +83,16 @@ def update_board(
 ) -> BoardState:
   user_id = _ensure_user(connection, username)
   now = _utc_now_iso()
-  board_row = connection.execute(
-    "SELECT id FROM boards WHERE user_id = ?", (user_id,)
-  ).fetchone()
   payload = json.dumps(board_state.model_dump())
-
-  if board_row:
-    connection.execute(
-      """
-      UPDATE boards
-      SET board_state_json = ?, updated_at = ?
-      WHERE user_id = ?
-      """,
-      (payload, now, user_id),
-    )
-  else:
-    connection.execute(
-      """
-      INSERT INTO boards (user_id, name, board_state_json, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?)
-      """,
-      (user_id, "Main Board", payload, now, now),
-    )
-
+  connection.execute(
+    """
+    INSERT INTO boards (user_id, name, board_state_json, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      board_state_json = excluded.board_state_json,
+      updated_at = excluded.updated_at
+    """,
+    (user_id, "Main Board", payload, now, now),
+  )
   connection.commit()
   return board_state

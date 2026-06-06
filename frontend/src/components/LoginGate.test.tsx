@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LoginGate } from "@/components/LoginGate";
 
@@ -25,7 +25,9 @@ describe("LoginGate", () => {
     await userEvent.type(screen.getByLabelText(/password/i), "creds");
     await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
 
-    expect(screen.getByText(/invalid username or password/i)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(/invalid username or password/i)).toBeInTheDocument()
+    );
     expect(screen.queryByText(/Kanban Studio/i)).not.toBeInTheDocument();
   });
 
@@ -35,7 +37,9 @@ describe("LoginGate", () => {
     await userEvent.type(screen.getByLabelText(/password/i), "password");
     await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
 
-    expect(screen.getByText("Kanban Studio (user)")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText("Kanban Studio (user)")).toBeInTheDocument()
+    );
     await userEvent.click(screen.getByRole("button", { name: /log out/i }));
     expect(screen.getByRole("heading", { name: /sign in/i })).toBeInTheDocument();
   });
@@ -55,14 +59,18 @@ describe("LoginGate", () => {
     await userEvent.type(screen.getByLabelText(/password/i), "secret");
     await userEvent.click(screen.getByRole("button", { name: /create account/i }));
 
-    expect(screen.getByText("Kanban Studio (alex)")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText("Kanban Studio (alex)")).toBeInTheDocument()
+    );
     await userEvent.click(screen.getByRole("button", { name: /log out/i }));
 
     await userEvent.type(screen.getByLabelText(/username/i), "alex");
     await userEvent.type(screen.getByLabelText(/password/i), "secret");
     await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
 
-    expect(screen.getByText("Kanban Studio (alex)")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText("Kanban Studio (alex)")).toBeInTheDocument()
+    );
   });
 
   it("shows an error when signing up with an existing username", async () => {
@@ -73,6 +81,8 @@ describe("LoginGate", () => {
     await userEvent.type(screen.getByLabelText(/password/i), "anything");
     await userEvent.click(screen.getByRole("button", { name: /create account/i }));
 
-    expect(screen.getByText(/username already exists/i)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(/username already exists/i)).toBeInTheDocument()
+    );
   });
 });

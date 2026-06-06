@@ -1,4 +1,5 @@
 from pathlib import Path
+import asyncio
 import sys
 import json
 
@@ -31,10 +32,10 @@ def test_openrouter_client_success_parses_text() -> None:
 
   client = OpenRouterClient(
     api_key="test-key",
-    http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
   )
-  assert client.chat("2+2") == "4"
-  client.http_client.close()
+  assert asyncio.run(client.chat("2+2")) == "4"
+  asyncio.run(client.http_client.aclose())
 
 
 def test_openrouter_client_http_error() -> None:
@@ -43,18 +44,18 @@ def test_openrouter_client_http_error() -> None:
 
   client = OpenRouterClient(
     api_key="test-key",
-    http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
   )
   with pytest.raises(AIClientError):
-    client.chat("2+2")
-  client.http_client.close()
+    asyncio.run(client.chat("2+2"))
+  asyncio.run(client.http_client.aclose())
 
 
 def test_ai_test_endpoint_success(tmp_path: Path) -> None:
   class FakeAIClient:
     model = "openrouter/free"
 
-    def chat(self, prompt: str) -> str:
+    async def chat(self, prompt: str) -> str:
       assert prompt == "2+2"
       return "4"
 
@@ -74,7 +75,7 @@ def test_ai_test_endpoint_failure(tmp_path: Path) -> None:
   class FakeAIClient:
     model = "openrouter/free"
 
-    def chat(self, _: str) -> str:
+    async def chat(self, _: str) -> str:
       raise AIClientError("OpenRouter request timed out.")
 
   with TestClient(
@@ -106,10 +107,10 @@ def test_ai_chat_message_only_response(tmp_path: Path) -> None:
   class FakeAIClient:
     model = "openrouter/free"
 
-    def chat(self, prompt: str) -> str:
+    async def chat(self, prompt: str) -> str:
       return prompt
 
-    def chat_messages(
+    async def chat_messages(
       self,
       messages: list[dict[str, str]],
       response_format: dict[str, object] | None = None,
@@ -156,10 +157,10 @@ def test_ai_chat_valid_board_update_persists(tmp_path: Path) -> None:
   class FakeAIClient:
     model = "openrouter/free"
 
-    def chat(self, prompt: str) -> str:
+    async def chat(self, prompt: str) -> str:
       return prompt
 
-    def chat_messages(
+    async def chat_messages(
       self,
       messages: list[dict[str, str]],
       response_format: dict[str, object] | None = None,
@@ -196,10 +197,10 @@ def test_ai_chat_invalid_schema_returns_safe_fallback(tmp_path: Path) -> None:
   class FakeAIClient:
     model = "openrouter/free"
 
-    def chat(self, prompt: str) -> str:
+    async def chat(self, prompt: str) -> str:
       return prompt
 
-    def chat_messages(
+    async def chat_messages(
       self,
       messages: list[dict[str, str]],
       response_format: dict[str, object] | None = None,

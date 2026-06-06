@@ -23,7 +23,7 @@ describe("KanbanBoard", () => {
     await userEvent.clear(input);
     await userEvent.type(input, "New Name");
     expect(input).toHaveValue("New Name");
-    expect(saveBoard).toHaveBeenCalled();
+    await waitFor(() => expect(saveBoard).toHaveBeenCalled());
   });
 
   it("adds and removes a card", async () => {
@@ -52,7 +52,7 @@ describe("KanbanBoard", () => {
     await userEvent.click(deleteButton);
 
     expect(within(column).queryByText("New card")).not.toBeInTheDocument();
-    expect(saveBoard).toHaveBeenCalled();
+    await waitFor(() => expect(saveBoard).toHaveBeenCalled());
   });
 
   it("shows load error and retries successfully", async () => {

@@ -112,7 +112,45 @@ AI_RESPONSE_FORMAT = {
       "properties": {
         "assistant_message": {"type": "string"},
         "board_update": {
-          "type": ["object", "null"],
+          "anyOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": False,
+              "required": ["columns", "cards"],
+              "properties": {
+                "columns": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["id", "title", "cardIds"],
+                    "properties": {
+                      "id": {"type": "string"},
+                      "title": {"type": "string"},
+                      "cardIds": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                      },
+                    },
+                  },
+                },
+                "cards": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["id", "title", "details"],
+                    "properties": {
+                      "id": {"type": "string"},
+                      "title": {"type": "string"},
+                      "details": {"type": "string"},
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
       },
     },
@@ -145,10 +183,6 @@ def create_app(
     return {"status": "ok"}
 
 
-  @app.get("/api/hello")
-  def hello() -> dict[str, str]:
-    return {"message": "Hello from FastAPI API"}
-
   @app.get("/api/board/{username}", response_model=BoardState)
   def read_board(username: str) -> BoardState:
     return get_or_create_board(app.state.db, username)
@@ -158,9 +192,9 @@ def create_app(
     return update_board(app.state.db, username, board_state)
 
   @app.post("/api/ai/test", response_model=AITestResponse)
-  def test_ai_connectivity(request: AITestRequest) -> AITestResponse:
+  async def test_ai_connectivity(request: AITestRequest) -> AITestResponse:
     try:
-      response_text = app.state.ai_client.chat(request.prompt)
+      response_text = await app.state.ai_client.chat(request.prompt)
     except AIClientError as exc:
       raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -171,12 +205,12 @@ def create_app(
     )
 
   @app.post("/api/ai/chat/{username}", response_model=AIChatResponse)
-  def ai_chat(username: str, request: AIChatRequest) -> AIChatResponse:
+  async def ai_chat(username: str, request: AIChatRequest) -> AIChatResponse:
     current_board = get_or_create_board(app.state.db, username)
     messages = _build_ai_messages(current_board, request)
 
     try:
-      raw_model_response = app.state.ai_client.chat_messages(
+      raw_model_response = await app.state.ai_client.chat_messages(
         messages=messages,
         response_format=AI_RESPONSE_FORMAT,
       )
@@ -225,6 +259,7 @@ def create_app(
       target_path = (resolved_static_dir / resource_path).resolve()
       if (
         target_path.is_file()
+        # resolve() normalises symlinks; safe on Linux/macOS (Docker target).
         and target_path.is_relative_to(resolved_static_dir)
       ):
         return FileResponse(target_path)

@@ -17,12 +17,12 @@ class OpenRouterClient:
   timeout_seconds: float = 20.0
   app_name: str = "pm-mvp"
   app_url: str = "http://localhost:8000"
-  http_client: httpx.Client | None = None
+  http_client: httpx.AsyncClient | None = None
 
-  def chat(self, prompt: str) -> str:
-    return self.chat_messages([{"role": "user", "content": prompt}])
+  async def chat(self, prompt: str) -> str:
+    return await self.chat_messages([{"role": "user", "content": prompt}])
 
-  def chat_messages(
+  async def chat_messages(
     self,
     messages: list[dict[str, str]],
     response_format: dict[str, Any] | None = None,
@@ -47,11 +47,11 @@ class OpenRouterClient:
     close_client = False
     client = self.http_client
     if client is None:
-      client = httpx.Client(timeout=self.timeout_seconds)
+      client = httpx.AsyncClient(timeout=self.timeout_seconds)
       close_client = True
 
     try:
-      response = client.post(
+      response = await client.post(
         f"{self.base_url}/chat/completions",
         headers=headers,
         json=payload,
@@ -81,7 +81,7 @@ class OpenRouterClient:
       raise AIClientError("Failed to parse AI response.") from exc
     finally:
       if close_client:
-        client.close()
+        await client.aclose()
 
 
 def create_openrouter_client() -> OpenRouterClient:

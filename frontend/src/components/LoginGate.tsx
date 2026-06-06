@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { KanbanBoard } from "@/components/KanbanBoard";
 
 const AUTH_STORAGE_KEY = "pm-authenticated";
@@ -12,7 +12,16 @@ const DUMMY_PASSWORD = "password";
 type AuthMode = "sign-in" | "sign-up";
 type StoredUser = {
   username: string;
-  password: string;
+  passwordHash: string;
+};
+
+const hashPassword = async (password: string): Promise<string> => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 };
 
 const readStoredUsers = (): StoredUser[] => {
@@ -30,7 +39,7 @@ const readStoredUsers = (): StoredUser[] => {
         typeof item === "object" &&
         item !== null &&
         typeof (item as { username?: unknown }).username === "string" &&
-        typeof (item as { password?: unknown }).password === "string"
+        typeof (item as { passwordHash?: unknown }).passwordHash === "string"
     );
   } catch {
     return [];
@@ -45,19 +54,18 @@ export const LoginGate = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [authMode, setAuthMode] = useState<AuthMode>("sign-in");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authenticatedUsername, setAuthenticatedUsername] = useState(DUMMY_USERNAME);
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.localStorage.getItem(AUTH_STORAGE_KEY) === "true"
+  );
+  const [authenticatedUsername, setAuthenticatedUsername] = useState(
+    () =>
+      typeof window !== "undefined"
+        ? (window.localStorage.getItem(AUTH_USERNAME_STORAGE_KEY) ?? DUMMY_USERNAME)
+        : DUMMY_USERNAME
+  );
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    const savedAuth = window.localStorage.getItem(AUTH_STORAGE_KEY);
-    if (savedAuth === "true") {
-      const savedUsername =
-        window.localStorage.getItem(AUTH_USERNAME_STORAGE_KEY) ?? DUMMY_USERNAME;
-      setAuthenticatedUsername(savedUsername);
-      setIsAuthenticated(true);
-    }
-  }, []);
 
   const signIn = (nextUsername: string) => {
     window.localStorage.setItem(AUTH_STORAGE_KEY, "true");
@@ -67,7 +75,7 @@ export const LoginGate = () => {
     setError("");
   };
 
-  const handleAuthSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const normalizedUsername = username.trim();
@@ -76,8 +84,11 @@ export const LoginGate = () => {
       return;
     }
 
+    const inputHash = await hashPassword(password);
+    const dummyHash = await hashPassword(DUMMY_PASSWORD);
+
     const availableUsers: StoredUser[] = [
-      { username: DUMMY_USERNAME, password: DUMMY_PASSWORD },
+      { username: DUMMY_USERNAME, passwordHash: dummyHash },
       ...readStoredUsers(),
     ];
 
@@ -91,14 +102,14 @@ export const LoginGate = () => {
       }
       writeStoredUsers([
         ...readStoredUsers(),
-        { username: normalizedUsername, password },
+        { username: normalizedUsername, passwordHash: inputHash },
       ]);
       signIn(normalizedUsername);
       return;
     }
 
     const validUser = availableUsers.find(
-      (user) => user.username === normalizedUsername && user.password === password
+      (user) => user.username === normalizedUsername && user.passwordHash === inputHash
     );
     if (!validUser) {
       setError("Invalid username or password.");
@@ -111,7 +122,7 @@ export const LoginGate = () => {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
     window.localStorage.removeItem(AUTH_USERNAME_STORAGE_KEY);
     setIsAuthenticated(false);
-    setAuthenticatedUsername(DUMMY_USERNAME);
+    setAuthenticatedUsername("");
     setAuthMode("sign-in");
     setUsername("");
     setPassword("");
@@ -130,10 +141,7 @@ export const LoginGate = () => {
           </h1>
           <p className="mt-3 text-sm leading-6 text-[var(--gray-text)]">
             {authMode === "sign-in" ? (
-              <>
-                Use username <strong>user</strong> and password <strong>password</strong>, or
-                sign up for a new account.
-              </>
+              <>Sign in or create a new account.</>
             ) : (
               "Create a new account to save your own board state."
             )}
@@ -170,7 +178,12 @@ export const LoginGate = () => {
               Sign up
             </button>
           </div>
-          <form className="mt-6 space-y-4" onSubmit={handleAuthSubmit}>
+          <form
+            className="mt-6 space-y-4"
+            onSubmit={(event) => {
+              void handleAuthSubmit(event);
+            }}
+          >
             <div>
               <label
                 className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]"
